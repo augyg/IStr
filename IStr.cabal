@@ -22,7 +22,7 @@ library
     -- other-modules:
     -- other-extensions:
     
-    build-depends:    base ^>=4.16.4.0
+    build-depends:    base
                     , template-haskell
                     , haskell-src-meta
     hs-source-dirs:   src
