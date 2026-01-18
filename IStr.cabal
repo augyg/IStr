@@ -25,5 +25,7 @@ library
     build-depends:    base
                     , template-haskell
                     , haskell-src-meta
+                    , text
+                    , bytestring
     hs-source-dirs:   src
     default-language: Haskell2010
