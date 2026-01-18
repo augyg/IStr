@@ -1,12 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Text.IStr where
 
 import Language.Haskell.TH
+import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Meta.Parse
 import Debug.Trace
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as BSL
 
-import qualified Language.Haskell.TH as TH
 
 debug :: QuasiQuoter
 debug = QuasiQuoter traceExp undefined undefined undefined
@@ -35,16 +41,16 @@ parseHaskell a ('}':xs)    = AntiQuote (reverse a) : parseStr [] xs
 parseHaskell a (x:xs)      = parseHaskell (x:a) xs
 
 parseStr :: String -> String -> [StringPart]
-parseStr a []           = [Literal (reverse a)]
-parseStr a ('\\':x:xs)  = parseStr (x:a) xs
-parseStr a ('\\':[])    = parseStr ('\\':a) []
-parseStr a ('#':'{':xs) = Literal (reverse a) : parseHaskell [] xs
-parseStr a (x:xs)       = parseStr (x:a) xs
+parseStr a []              = [Literal (reverse a)]
+parseStr a ('\\':'\\':xs)  = parseStr ('\\':a) xs       -- \\ -> single \
+parseStr a ('\\':'#':'{':xs) = parseStr ('{':'#':a) xs  -- \#{ -> literal #{
+parseStr a ('#':'{':xs)    = Literal (reverse a) : parseHaskell [] xs
+parseStr a (x:xs)          = parseStr (x:a) xs
 
 makeExpr :: [StringPart] -> ExpQ
 makeExpr [] = [| "" |]
 makeExpr ((Literal a):xs)   = TH.appE [| (++) a |] (makeExpr xs)
-makeExpr ((AntiQuote a):xs) = TH.appE [| (++) (trimQuotes (show $(reifyStringToHaskell a))) |] (makeExpr xs)
+makeExpr ((AntiQuote a):xs) = TH.appE [| (++) (istrShow $(reifyStringToHaskell a)) |] (makeExpr xs)
 
 trimQuotes :: String -> String 
 trimQuotes s = reverse $ dropWhile (== '"') $ reverse $ dropWhile (== '"') s
@@ -61,5 +67,23 @@ rstrExp s = makeExpr $ parseStr [] $ filter (/= '\r') s
 istr :: QuasiQuoter
 istr = QuasiQuoter rstrExp undefined undefined undefined
 
+class IStrShow a where
+  istrShow :: a -> String
 
+instance IStrShow String where
+  istrShow = id
 
+instance IStrShow T.Text where
+  istrShow = T.unpack
+
+instance IStrShow TL.Text where
+  istrShow = TL.unpack
+
+instance IStrShow BS.ByteString where
+  istrShow = BS.unpack
+
+instance IStrShow BSL.ByteString where
+  istrShow = BSL.unpack
+
+instance {-# OVERLAPPABLE #-} Show a => IStrShow a where
+  istrShow = show
