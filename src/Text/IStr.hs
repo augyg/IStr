@@ -1,13 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PackageImports #-}
 module Text.IStr where
 
-import Language.Haskell.TH
-import qualified Language.Haskell.TH as TH
+import "template-haskell" Language.Haskell.TH
+import qualified "template-haskell" Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Meta.Parse
 import Debug.Trace
+import Data.Typeable
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Char8 as BS
@@ -69,6 +71,9 @@ istr = QuasiQuoter rstrExp undefined undefined undefined
 
 class IStrShow a where
   istrShow :: a -> String
+
+instance Typeable a => IStrShow (Proxy a) where
+  istrShow proxy = show $ typeRep proxy
 
 instance IStrShow String where
   istrShow = id
